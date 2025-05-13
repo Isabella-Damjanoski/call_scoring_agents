@@ -42,7 +42,7 @@ def assess_politeness(req: func.HttpRequest) -> func.HttpResponse:
             "role": "system",
             "content": (
                 "You are a call center manager evaluating the performance of your agents. "
-                "Your goal is to ensure that agents are professional and treat customers well. "
+                "Your goal is to ensure that agents are polite and treat customers well. "
                 "You score agents on politeness using a scale from of 1 to 5 where 1 is very impolite and 5 is extremely polite."
                 "Especially for agents who don't performe well, you will provide a detailed reasoning for the score. "
                 "You will also provide a brief summary of the call. "
@@ -138,7 +138,9 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
                 "You will also provide a brief summary of the call. "
                 "The summary should include the main points of the conversation and any issues that were raised. "
                 "The summary should be concise and to the point. "
-                "Respond ONLY with a valid JSON object in this format: "
+                "{\"politeness_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
+                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."
             ),
         },
         {
@@ -159,6 +161,19 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
     assessment = response.choices[0].message.content
     logging.info(f"Assessment: {assessment}")
 
+    try:
+        logging.info(f"Assessment: {assessment}")
+        assessment_data = json.loads(assessment)
+    except json.JSONDecodeError:
+        return func.HttpResponse("AI response was not valid JSON.", status_code=500)
+
+    # Prepare Cosmos DB item
+    item = {
+        "id": str(uuid.uuid4()),
+        "transcript": call_transcript,
+        "assessment": assessment
+    }
+
     # Add the answer from chat into your Cosmos DB
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
@@ -168,10 +183,10 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
         offer_throughput=400
     )
 
-    container.create_item(data)
+    container.create_item(item)
 
     if assessment:
-        return func.HttpResponse(assessment, status_code=200) # Return 200 when things went good
+        return func.HttpResponse(json.dumps(item), status_code=200, mimetype="application/json") # Return 200 when things went good
     else:
         return func.HttpResponse("This HTTP triggered function executed but did not return a response.", status_code=500)  # Return 500 when there is a problem on the server
 
@@ -214,8 +229,9 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
                 "You will also provide a brief summary of the call. "
                 "The summary should include the main points of the conversation and any issues that were raised. "
                 "The summary should be concise and to the point. "
-                "You will provide your assessment in the following format: {'politeness_score': <score>, 'summary': <summary', 'reasoning': <reasoning>}. "
-            ),
+                "{\"politeness_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
+                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
         },
         {
             "role": "user",
@@ -235,6 +251,19 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
     assessment = response.choices[0].message.content
     logging.info(f"Assessment: {assessment}")
 
+    try:
+        logging.info(f"Assessment: {assessment}")
+        assessment_data = json.loads(assessment)
+    except json.JSONDecodeError:
+        return func.HttpResponse("AI response was not valid JSON.", status_code=500)
+
+    # Prepare Cosmos DB item
+    item = {
+        "id": str(uuid.uuid4()),
+        "transcript": call_transcript,
+        "assessment": assessment
+    }
+
     # Add the answer from chat into your Cosmos DB
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
@@ -244,29 +273,9 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
         offer_throughput=400
     )
 
-    container.create_item(data)
+    container.create_item(item)
 
     if assessment:
-        return func.HttpResponse(assessment, status_code=200) # Return 200 when things went good
+        return func.HttpResponse(json.dumps(item), status_code=200, mimetype="application/json") # Return 200 when things went good
     else:
         return func.HttpResponse("This HTTP triggered function executed but did not return a response.", status_code=500)  # Return 500 when there is a problem on the server
-
-@app.route(route="analyze/sentiment")
-def analyze_sentiment(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function for sentiment analysis processed a request.')
-
-    # Cosmos DB configuration (use environment variables for security)
-    cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
-    database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
-    container = database.create_container_if_not_exists(
-        id=os.getenv("COSMOS_CONTAINER"),
-        partition_key=PartitionKey(path="/id"),
-        offer_throughput=400
-    )
-
-    data = req.get_json()
-
-    # Store result in Cosmos DB
-    container.create_item(body=data)
-
-    return func.HttpResponse("This HTTP triggered function executed.", status_code=200)
