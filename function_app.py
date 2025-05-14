@@ -138,10 +138,9 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
                 "You will also provide a brief summary of the call. "
                 "The summary should include the main points of the conversation and any issues that were raised. "
                 "The summary should be concise and to the point. "
-                "{\"politeness_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "{\"empathy_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
                 "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
-                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."
-            ),
+                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
         },
         {
             "role": "user",
@@ -173,7 +172,7 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
         "transcript": call_transcript,
         "assessment": assessment
     }
-
+    
     # Add the answer from chat into your Cosmos DB
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
@@ -229,7 +228,7 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
                 "You will also provide a brief summary of the call. "
                 "The summary should include the main points of the conversation and any issues that were raised. "
                 "The summary should be concise and to the point. "
-                "{\"politeness_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "{\"professionalism_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
                 "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
                 "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
         },
