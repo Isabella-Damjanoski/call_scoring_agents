@@ -88,7 +88,7 @@ def assess_politeness(req: func.HttpRequest) -> func.HttpResponse:
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
     container = database.create_container_if_not_exists(
-        id=os.getenv("COSMOS_CONTAINER"),
+        id=os.getenv("COSMOS_CONTAINER2"),
         partition_key=PartitionKey(path="/id"),
         offer_throughput=400
     )
@@ -177,7 +177,7 @@ def assess_empathy(req: func.HttpRequest) -> func.HttpResponse:
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
     container = database.create_container_if_not_exists(
-        id=os.getenv("COSMOS_CONTAINER"),
+        id=os.getenv("COSMOS_CONTAINER2"),
         partition_key=PartitionKey(path="/id"),
         offer_throughput=400
     )
@@ -267,7 +267,7 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
     container = database.create_container_if_not_exists(
-        id=os.getenv("COSMOS_CONTAINER"),
+        id=os.getenv("COSMOS_CONTAINER2"),
         partition_key=PartitionKey(path="/id"),
         offer_throughput=400
     )
@@ -278,3 +278,39 @@ def assess_professionalism(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps(item), status_code=200, mimetype="application/json") # Return 200 when things went good
     else:
         return func.HttpResponse("This HTTP triggered function executed but did not return a response.", status_code=500)  # Return 500 when there is a problem on the server
+
+@app.function_name(name="queue_to_cosmos")
+@app.service_bus_queue_trigger(arg_name="msg", queue_name="test1", connection="ServiceBusConnection")
+def queue_to_cosmos(msg: func.ServiceBusMessage) -> None:
+    logging.info('Queue trigger function processed a message.')
+
+    try:
+        data = json.loads(msg.get_body().decode('utf-8'))  # Assumes the queue message is JSON
+        call_id = data.get("call_id")
+        transcript = data.get("transcript")
+        if not call_id or not transcript:
+            logging.error("Missing call_id or transcript in message.")
+            return
+    except Exception as e:
+        logging.error(f"Could not parse Service Bus message as JSON: {e}")
+        return
+
+    # Prepare the item to store in Cosmos DB
+    item = {
+        "id": str(uuid.uuid4()),     
+        "call_id": call_id,
+        "transcript": transcript
+    }
+
+    # Write to Cosmos DB
+    cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
+    database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
+    container = database.create_container_if_not_exists(
+        id=os.getenv("COSMOS_CONTAINER1"),
+        partition_key=PartitionKey(path="/id"),
+        offer_throughput=400
+    )
+
+    container.create_item(item)
+
+    logging.info(f"Item written to Cosmos DB transcript container: {item}")
