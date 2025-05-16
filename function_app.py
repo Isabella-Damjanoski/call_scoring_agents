@@ -98,220 +98,220 @@ def politeness_from_topic(msg: func.ServiceBusMessage) -> None:
     container.create_item(item)
     logging.info(f"Politeness assessment written to Cosmos DB: {item}")
     
-# @app.function_name(name="empathy_from_topic")
-# @app.service_bus_topic_trigger(
-#     arg_name="msg",
-#     topic_name="transcriptstopic",  
-#     subscription_name="empathy_from_topic_sub", 
-#     connection="ServiceBusConnection"
-# )
-# def empathy_from_topic(msg: func.ServiceBusMessage) -> None:
-#     logging.info('Empathy assessment function triggered by Service Bus topic.')
+@app.function_name(name="empathy_from_topic")
+@app.service_bus_topic_trigger(
+    arg_name="msg",
+    topic_name="transcriptstopic",  
+    subscription_name="empathy_from_topic_sub", 
+    connection="ServiceBusConnection"
+)
+def empathy_from_topic(msg: func.ServiceBusMessage) -> None:
+    logging.info('Empathy assessment function triggered by Service Bus topic.')
 
-#     try:
-#         data = json.loads(msg.get_body().decode('utf-8'))
-#         call_id = data.get("call_id")
-#         transcript = data.get("transcript")
-#         if not call_id or not transcript:
-#             logging.error("Missing call_id or transcript in message.")
-#             return
-#     except Exception as e:
-#         logging.error(f"Could not parse Service Bus message as JSON: {e}")
-#         return
+    try:
+        data = json.loads(msg.get_body().decode('utf-8'))
+        call_id = data.get("call_id")
+        transcript = data.get("transcript")
+        if not call_id or not transcript:
+            logging.error("Missing call_id or transcript in message.")
+            return
+    except Exception as e:
+        logging.error(f"Could not parse Service Bus message as JSON: {e}")
+        return
 
-#     # Initialize the Azure OpenAI client
-#     client = AzureOpenAI(
-#         api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-#         azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-#         api_key=os.getenv("AZURE_OPENAI_KEY"),
-#     )
+    # Initialize the Azure OpenAI client
+    client = AzureOpenAI(
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_KEY"),
+    )
 
-#     # Define the prompt for the AI
-#     messages = [
-#         {
-#             "role": "system",
-#             "content": (
-#                 "You are a call center manager evaluating the performance of your agents. "
-#                 "Your goal is to ensure agents express understanding, concern, and support toward customers. "
-#                 "You score agents on empathy using a scale from 1 to 5, where 1 is lacking empathy and 5 is highly empathetic. "
-#                 "Express score out of 5. "
-#                 "Analyze the following call transcript and provide an empathy score with a brief reasoning."
-#                 "You will also provide a brief summary of the call. "
-#                 "The summary should include the main points of the conversation and any issues that were raised. "
-#                 "The summary should be concise and to the point. "
-#                 "{\"empathy_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
-#                 "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
-#                 "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
-#         },
-#         {
-#             "role": "user",
-#             "content": f"Transcript:\n{transcript}\n\nEmpathy score and reasoning:",
-#         },
-#     ]
+    # Define the prompt for the AI
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a call center manager evaluating the performance of your agents. "
+                "Your goal is to ensure agents express understanding, concern, and support toward customers. "
+                "You score agents on empathy using a scale from 1 to 5, where 1 is lacking empathy and 5 is highly empathetic. "
+                "Express score out of 5. "
+                "Analyze the following call transcript and provide an empathy score with a brief reasoning."
+                "You will also provide a brief summary of the call. "
+                "The summary should include the main points of the conversation and any issues that were raised. "
+                "The summary should be concise and to the point. "
+                "{\"empathy_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
+                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
+        },
+        {
+            "role": "user",
+            "content": f"Transcript:\n{transcript}\n\nEmpathy score and reasoning:",
+        },
+    ]
 
-#     # Call the Azure OpenAI API
-#     response = client.chat.completions.create(
-#         messages=messages,
-#         max_tokens=500,
-#         temperature=0.7,
-#         top_p=1.0,
-#         model=os.getenv("AZURE_DEPLOYMENT_NAME"),
-#     )
+    # Call the Azure OpenAI API
+    response = client.chat.completions.create(
+        messages=messages,
+        max_tokens=500,
+        temperature=0.7,
+        top_p=1.0,
+        model=os.getenv("AZURE_DEPLOYMENT_NAME"),
+    )
 
-#     assessment = response.choices[0].message.content.strip()
+    assessment = response.choices[0].message.content.strip()
 
-#     try:
-#         assessment_data = json.loads(assessment)
-#     except Exception as e:
-#         logging.error(f"AI response was not valid JSON: {e}")
-#         return
+    try:
+        assessment_data = json.loads(assessment)
+    except Exception as e:
+        logging.error(f"AI response was not valid JSON: {e}")
+        return
 
-#     # Prepare Cosmos DB item
-#     item = {
-#         "id": str(uuid.uuid4()),
-#         "call_id": call_id,
-#         "assessment": assessment_data,
-#         "type": "empathy"
-#     }
+    # Prepare Cosmos DB item
+    item = {
+        "id": str(uuid.uuid4()),
+        "call_id": call_id,
+        "assessment": assessment_data,
+        "type": "empathy"
+    }
     
-#     # Add the answer from chat into your Cosmos DB
-#     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
-#     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
-#     container = database.create_container_if_not_exists(
-#         id=os.getenv("COSMOS_CONTAINER2"),
-#         partition_key=PartitionKey(path="/id"),
-#         offer_throughput=400
-#     )
+    # Add the answer from chat into your Cosmos DB
+    cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
+    database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
+    container = database.create_container_if_not_exists(
+        id=os.getenv("COSMOS_CONTAINER2"),
+        partition_key=PartitionKey(path="/id"),
+        offer_throughput=400
+    )
 
-#     container.create_item(item)
-#     logging.info(f"Empathy assessment written to Cosmos DB: {item}")
+    container.create_item(item)
+    logging.info(f"Empathy assessment written to Cosmos DB: {item}")
 
-# @app.function_name(name="professionalism_from_topic")
-# @app.service_bus_topic_trigger(
-#     arg_name="msg",
-#     topic_name="transcriptstopic",  
-#     subscription_name="professionalism_from_topic_sub",  
-#     connection="ServiceBusConnection"
-# )
-# def professionalism_from_topic(msg: func.ServiceBusMessage) -> None:
-#     logging.info('Professionalism assessment function triggered by Service Bus topic.')
+@app.function_name(name="professionalism_from_topic")
+@app.service_bus_topic_trigger(
+    arg_name="msg",
+    topic_name="transcriptstopic",  
+    subscription_name="professionalism_from_topic_sub",  
+    connection="ServiceBusConnection"
+)
+def professionalism_from_topic(msg: func.ServiceBusMessage) -> None:
+    logging.info('Professionalism assessment function triggered by Service Bus topic.')
 
-#     try:
-#         data = json.loads(msg.get_body().decode('utf-8'))
-#         call_id = data.get("call_id")
-#         transcript = data.get("transcript")
-#         if not call_id or not transcript:
-#             logging.error("Missing call_id or transcript in message.")
-#             return
-#     except Exception as e:
-#         logging.error(f"Could not parse Service Bus message as JSON: {e}")
-#         return
+    try:
+        data = json.loads(msg.get_body().decode('utf-8'))
+        call_id = data.get("call_id")
+        transcript = data.get("transcript")
+        if not call_id or not transcript:
+            logging.error("Missing call_id or transcript in message.")
+            return
+    except Exception as e:
+        logging.error(f"Could not parse Service Bus message as JSON: {e}")
+        return
 
-#     # Initialize the Azure OpenAI client
-#     client = AzureOpenAI(
-#         api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-#         azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-#         api_key=os.getenv("AZURE_OPENAI_KEY"),
-#     )
+    # Initialize the Azure OpenAI client
+    client = AzureOpenAI(
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_KEY"),
+    )
 
-#     # Define the prompt for the AI
-#     messages = [
-#         {
-#             "role": "system",
-#             "content": (
-#                 "You are a call center manager evaluating the performance of your agents."
-#                 "Your goal is to assess the AI agent’s level of professionalism."
-#                 "Focus on whether the agent maintains a respectful and courteous tone, avoids inappropriate or dismissive language, and communicates in a clear and service-oriented manner."
-#                 "Pay close attention to the agent’s word choice, tone consistency, and ability to remain composed and professional throughout the interaction."
-#                 "You score agents on professionalism using a scale from 1 to 5, where 1 is unprofessional and 5 is highly professional."
-#                 "Express score out of 5."
-#                 "You will also provide a brief summary of the call. "
-#                 "The summary should include the main points of the conversation and any issues that were raised. "
-#                 "The summary should be concise and to the point. "
-#                 "{\"professionalism_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
-#                 "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
-#                 "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
-#         },
-#         {
-#             "role": "user",
-#             "content": f"Transcript:\n{transcript}\n\nProfessionalism score and reasoning:",
-#         },
-#     ]
+    # Define the prompt for the AI
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a call center manager evaluating the performance of your agents."
+                "Your goal is to assess the AI agent’s level of professionalism."
+                "Focus on whether the agent maintains a respectful and courteous tone, avoids inappropriate or dismissive language, and communicates in a clear and service-oriented manner."
+                "Pay close attention to the agent’s word choice, tone consistency, and ability to remain composed and professional throughout the interaction."
+                "You score agents on professionalism using a scale from 1 to 5, where 1 is unprofessional and 5 is highly professional."
+                "Express score out of 5."
+                "You will also provide a brief summary of the call. "
+                "The summary should include the main points of the conversation and any issues that were raised. "
+                "The summary should be concise and to the point. "
+                "{\"professionalism_score\": <score>, \"summary\": <summary>, \"reasoning\": <reasoning>} "
+                "Use double quotes for all keys and string values. Do NOT include any explanations, markdown, or extra text."
+                "Respond ONLY with a valid JSON object. Use double quotes on all keys and values. Do NOT include any explanations or markdown formatting like ```json."            ),
+        },
+        {
+            "role": "user",
+            "content": f"Transcript:\n{transcript}\n\nProfessionalism score and reasoning:",
+        },
+    ]
 
-#     # Call the Azure OpenAI API
-#     response = client.chat.completions.create(
-#         messages=messages,
-#         max_tokens=500,
-#         temperature=0.7,
-#         top_p=1.0,
-#         model=os.getenv("AZURE_DEPLOYMENT_NAME"),
-#     )
+    # Call the Azure OpenAI API
+    response = client.chat.completions.create(
+        messages=messages,
+        max_tokens=500,
+        temperature=0.7,
+        top_p=1.0,
+        model=os.getenv("AZURE_DEPLOYMENT_NAME"),
+    )
 
-#     assessment = response.choices[0].message.content.strip()
-#     try:
-#         assessment_data = json.loads(assessment)
-#     except Exception as e:
-#         logging.error(f"AI response was not valid JSON: {e}")
-#         return
+    assessment = response.choices[0].message.content.strip()
+    try:
+        assessment_data = json.loads(assessment)
+    except Exception as e:
+        logging.error(f"AI response was not valid JSON: {e}")
+        return
 
-#     # Prepare Cosmos DB item
-#     item = {
-#         "id": str(uuid.uuid4()),
-#         "call_id": call_id,
-#         "assessment": assessment_data,
-#         "type": "professionalism"
-#     }
+    # Prepare Cosmos DB item
+    item = {
+        "id": str(uuid.uuid4()),
+        "call_id": call_id,
+        "assessment": assessment_data,
+        "type": "professionalism"
+    }
 
-#     # Add the answer from chat into your Cosmos DB
-#     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
-#     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
-#     container = database.create_container_if_not_exists(
-#         id=os.getenv("COSMOS_CONTAINER2"),
-#         partition_key=PartitionKey(path="/id"),
-#         offer_throughput=400
-#     )
+    # Add the answer from chat into your Cosmos DB
+    cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
+    database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
+    container = database.create_container_if_not_exists(
+        id=os.getenv("COSMOS_CONTAINER2"),
+        partition_key=PartitionKey(path="/id"),
+        offer_throughput=400
+    )
 
-#     container.create_item(item)
-#     logging.info(f"Professionalism assessment written to Cosmos DB: {item}")
+    container.create_item(item)
+    logging.info(f"Professionalism assessment written to Cosmos DB: {item}")
 
-# @app.function_name(name="topic_to_cosmos")
-# @app.service_bus_topic_trigger(
-#     arg_name="msg",
-#     topic_name="transcriptstopic",
-#     subscription_name="topic_to_cosmos_sub",
-#     connection="ServiceBusConnection"
-# )
-# def topic_to_cosmos(msg: func.ServiceBusMessage) -> None:
-#     logging.info('Queue trigger function processed a message.')
+@app.function_name(name="topic_to_cosmos")
+@app.service_bus_topic_trigger(
+    arg_name="msg",
+    topic_name="transcriptstopic",
+    subscription_name="topic_to_cosmos_sub",
+    connection="ServiceBusConnection"
+)
+def topic_to_cosmos(msg: func.ServiceBusMessage) -> None:
+    logging.info('Queue trigger function processed a message.')
 
-#     logging.info(f"Raw message body: {msg.get_body()}")
+    logging.info(f"Raw message body: {msg.get_body()}")
 
-#     try:
-#         data = json.loads(msg.get_body().decode('utf-8'))  # Assumes the queue message is JSON
-#         call_id = data.get("call_id")
-#         transcript = data.get("transcript")
-#         if not call_id or not transcript:
-#             logging.error("Missing call_id or transcript in message.")
-#             return
-#     except Exception as e:
-#         logging.error(f"Could not parse Service Bus message as JSON: {e}")
-#         return
+    try:
+        data = json.loads(msg.get_body().decode('utf-8'))  # Assumes the queue message is JSON
+        call_id = data.get("call_id")
+        transcript = data.get("transcript")
+        if not call_id or not transcript:
+            logging.error("Missing call_id or transcript in message.")
+            return
+    except Exception as e:
+        logging.error(f"Could not parse Service Bus message as JSON: {e}")
+        return
 
-#     # Prepare the item to store in Cosmos DB
-#     item = {
-#         "id": str(uuid.uuid4()),     
-#         "call_id": call_id,
-#         "transcript": transcript
-#     }
+    # Prepare the item to store in Cosmos DB
+    item = {
+        "id": str(uuid.uuid4()),     
+        "call_id": call_id,
+        "transcript": transcript
+    }
 
-#     # Write to Cosmos DB
-#     cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
-#     database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
-#     container = database.create_container_if_not_exists(
-#         id=os.getenv("COSMOS_CONTAINER1"),
-#         partition_key=PartitionKey(path="/id"),
-#         offer_throughput=400
-#     )
+    # Write to Cosmos DB
+    cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
+    database = cosmos_client.create_database_if_not_exists(id=os.getenv("COSMOS_DATABASE"))
+    container = database.create_container_if_not_exists(
+        id=os.getenv("COSMOS_CONTAINER1"),
+        partition_key=PartitionKey(path="/id"),
+        offer_throughput=400
+    )
 
-#     container.create_item(item)
-#     logging.info(f"Item written to Cosmos DB transcript container: {item}")
+    container.create_item(item)
+    logging.info(f"Item written to Cosmos DB transcript container: {item}")
