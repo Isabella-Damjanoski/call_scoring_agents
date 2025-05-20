@@ -6,7 +6,6 @@ import uuid
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 from azure.cosmos import CosmosClient, PartitionKey
-import uuid
 load_dotenv()
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
