@@ -13,7 +13,7 @@ import tempfile
 import threading
 load_dotenv()
 
-app = func.FunctionApp()
+app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 @app.function_name(name="blobberfunction")
 @app.blob_trigger(arg_name="myblob",
@@ -105,8 +105,6 @@ def blobberfunction(myblob: func.InputStream):
             sender.send_messages(message)
     
     logging.info("Transcript sent to Service Bus topic.")
-    
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 @app.function_name(name="politeness_from_topic")
 @app.service_bus_topic_trigger(
