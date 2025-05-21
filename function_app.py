@@ -6,18 +6,12 @@ import uuid
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 from azure.cosmos import CosmosClient, PartitionKey
-load_dotenv()
-
-import azure.functions as func
-import json
-import logging
-import os
-import uuid
 from azure.storage.blob import BlobServiceClient
 import azure.cognitiveservices.speech as speechsdk
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 import tempfile
 import threading
+load_dotenv()
 
 app = func.FunctionApp()
 
