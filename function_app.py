@@ -314,3 +314,29 @@ def topic_to_cosmos(msg: func.ServiceBusMessage) -> None:
 
     container.create_item(item)
     logging.info(f"Item written to Cosmos DB transcript container: {item}")
+
+@app.function_name(name="get_all_transcripts")
+@app.route(route="transcripts", methods=["GET"])
+def get_all_transcripts(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('HTTP trigger function to get all transcripts.')
+
+    try:
+        cosmos_client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), os.getenv("COSMOS_KEY"))
+        database = cosmos_client.get_database_client(os.getenv("COSMOS_DATABASE"))
+        container = database.get_container_client(os.getenv("COSMOS_CONTAINER1"))
+
+        # Query all items (transcripts)
+        query = "SELECT c.id, c.call_id, c.transcript FROM c"
+        items = list(container.query_items(query=query, enable_cross_partition_query=True))
+
+        return func.HttpResponse(
+            json.dumps(items),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        logging.error(f"Error fetching transcripts: {e}")
+        return func.HttpResponse(
+            "Error fetching transcripts.",
+            status_code=500
+        )
