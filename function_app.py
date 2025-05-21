@@ -96,7 +96,7 @@ def blobberfunction(myblob: func.InputStream):
     })
 
     # Send transcript to Service Bus Topic
-    servicebus_conn_str = os.getenv("AZURE_SERVICEBUS_CONNECTION_STRING")
+    servicebus_conn_str = os.getenv("ServiceBusConnection")
     topic_name = os.getenv("AZURE_SERVICEBUS_TOPIC_NAME", "transcripttopic")
     with ServiceBusClient.from_connection_string(servicebus_conn_str) as client:
         sender = client.get_topic_sender(topic_name=topic_name)
